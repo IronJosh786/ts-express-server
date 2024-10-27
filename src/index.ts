@@ -31,3 +31,5 @@ app.listen(port, () => {
 app.use("/", (_req, res) => {
   res.send("This is a simple ts-express backend");
 });
+
+export default app;
