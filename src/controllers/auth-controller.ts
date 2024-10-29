@@ -45,7 +45,7 @@ export const signUp = asyncHandler(async (req: Request, res: Response) => {
     res.cookie("access_token", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "none",
       maxAge: cookieExpiryTimeInMS,
       domain: "ts-express-server.vercel.app",
     });
@@ -96,7 +96,7 @@ export const signIn = asyncHandler(async (req: Request, res: Response) => {
     res.cookie("access_token", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "none",
       maxAge: cookieExpiryTimeInMS,
       domain: "ts-express-server.vercel.app",
     });
@@ -157,7 +157,7 @@ export const refreshToken = asyncHandler(
       res.cookie("access_token", accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: "none",
         maxAge: cookieExpiryTimeInMS,
         domain: "ts-express-server.vercel.app",
       });
@@ -199,7 +199,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
     res.clearCookie("access_token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "none",
       maxAge: 0,
       domain: "ts-express-server.vercel.app",
     });
