@@ -45,7 +45,6 @@ export const signUp = asyncHandler(async (req: Request, res: Response) => {
     res.cookie("access_token", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "none",
       maxAge: cookieExpiryTimeInMS,
     });
 
@@ -95,7 +94,6 @@ export const signIn = asyncHandler(async (req: Request, res: Response) => {
     res.cookie("access_token", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "none",
       maxAge: cookieExpiryTimeInMS,
     });
 
@@ -155,7 +153,6 @@ export const refreshToken = asyncHandler(
       res.cookie("access_token", accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "none",
         maxAge: cookieExpiryTimeInMS,
       });
 
@@ -196,7 +193,6 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
     res.clearCookie("access_token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "none",
       maxAge: 0,
     });
 
