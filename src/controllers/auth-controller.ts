@@ -29,7 +29,7 @@ function setCookie(
     sameSite: "none",
     maxAge: cookieExpiry,
     secure: process.env.NODE_ENV === "production",
-    path: cookieName === "refresh_token" ? "auth" : "/",
+    path: cookieName === "refresh_token" ? "/api/auth" : "/",
   });
 }
 
@@ -196,21 +196,8 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
       data: { refreshToken: null },
     });
 
-    res.clearCookie("access_token", {
-      httpOnly: true,
-      sameSite: "none",
-      maxAge: 0,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-    });
-
-    res.clearCookie("refresh_token", {
-      httpOnly: true,
-      sameSite: "none",
-      maxAge: 0,
-      secure: process.env.NODE_ENV === "production",
-      path: "auth",
-    });
+    setCookie(res, "access_token", "", 0);
+    setCookie(res, "refresh_token", "", 0);
 
     return res.status(200).json({ message: "Logout successful!" });
   } catch (error) {
