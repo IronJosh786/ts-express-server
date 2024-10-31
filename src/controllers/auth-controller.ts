@@ -5,7 +5,33 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../utils/async-handler";
 import { createTokens, verifyToken } from "../utils/jwt";
 
-const cookieExpiryTimeInMS = parseInt(process.env.COOKIE_EXPIRY!);
+type User = {
+  id: string;
+  email: string;
+};
+
+const accessTokenCookieExpiry = parseInt(
+  process.env.ACCESS_TOKEN_COOKIE_EXPIRY!
+);
+
+const refreshTokenCookieExpiry = parseInt(
+  process.env.REFRESH_TOKEN_COOKIE_EXPIRY!
+);
+
+function setCookie(
+  res: Response,
+  cookieName: string,
+  cookieValue: string,
+  cookieExpiry: number
+) {
+  res.cookie(cookieName, cookieValue, {
+    httpOnly: true,
+    sameSite: "none",
+    maxAge: cookieExpiry,
+    secure: process.env.NODE_ENV === "production",
+    path: cookieName === "refresh_token" ? "auth" : "/",
+  });
+}
 
 export const signUp = asyncHandler(async (req: Request, res: Response) => {
   try {
@@ -42,12 +68,8 @@ export const signUp = asyncHandler(async (req: Request, res: Response) => {
       data: { refreshToken },
     });
 
-    res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "none",
-      maxAge: cookieExpiryTimeInMS,
-    });
+    setCookie(res, "access_token", accessToken, accessTokenCookieExpiry);
+    setCookie(res, "refresh_token", refreshToken, refreshTokenCookieExpiry);
 
     return res
       .status(201)
@@ -79,7 +101,7 @@ export const signIn = asyncHandler(async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found!" });
     }
 
-    const isPasswordCorrect = await bcrypt.compareSync(password, user.password);
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
     if (!isPasswordCorrect) {
       return res.status(400).json({ message: "Incorrect Password!" });
@@ -92,12 +114,8 @@ export const signIn = asyncHandler(async (req: Request, res: Response) => {
       data: { refreshToken },
     });
 
-    res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "none",
-      maxAge: cookieExpiryTimeInMS,
-    });
+    setCookie(res, "access_token", accessToken, accessTokenCookieExpiry);
+    setCookie(res, "refresh_token", refreshToken, refreshTokenCookieExpiry);
 
     return res
       .status(200)
@@ -113,36 +131,28 @@ export const signIn = asyncHandler(async (req: Request, res: Response) => {
 export const refreshToken = asyncHandler(
   async (req: Request, res: Response) => {
     try {
-      const access_token = req?.cookies?.access_token;
+      const refresh_token = req?.cookies?.refresh_token;
 
-      if (!access_token) {
-        return res.status(401).json({ message: "Unauthorized!" });
+      if (!refresh_token) {
+        return res.status(400).json({ message: "Login required!" });
       }
 
-      const decodedToken = verifyToken(
-        access_token,
-        process.env.ACCESS_TOKEN_SECRET!,
-        true
-      ) as JwtPayload;
+      let decodedToken;
+      try {
+        decodedToken = verifyToken(
+          refresh_token,
+          process.env.REFRESH_TOKEN_SECRET!
+        ) as JwtPayload;
+      } catch (error) {
+        return res.status(400).json({ message: "Login required!" });
+      }
+
       const user = await db.user.findUnique({
         where: { id: decodedToken.userId },
       });
 
       if (!user) {
-        return res.status(404).json({ message: "Invalid token!" });
-      }
-
-      if (!user.refreshToken) {
-        return res.status(401).json({ message: "Unauthorized!" });
-      }
-
-      try {
-        verifyToken(
-          user.refreshToken,
-          process.env.REFRESH_TOKEN_SECRET!
-        ) as JwtPayload;
-      } catch (error) {
-        return res.status(401).json({ message: "Unauthorized!" });
+        return res.status(400).json({ message: "Login required!" });
       }
 
       const { accessToken, refreshToken } = createTokens(user.id, user.email);
@@ -152,12 +162,8 @@ export const refreshToken = asyncHandler(
         data: { refreshToken },
       });
 
-      res.cookie("access_token", accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "none",
-        maxAge: cookieExpiryTimeInMS,
-      });
+      setCookie(res, "access_token", accessToken, accessTokenCookieExpiry);
+      setCookie(res, "refresh_token", refreshToken, refreshTokenCookieExpiry);
 
       return res.status(200).json({ message: "Token refresh successful" });
     } catch (error) {
@@ -169,19 +175,16 @@ export const refreshToken = asyncHandler(
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
   try {
-    const access_token = req.cookies?.access_token;
+    const refresh_token = req?.cookies?.refresh_token;
 
-    if (!access_token) {
+    if (!refresh_token) {
       return res.status(400).json({ message: "Already logged out" });
     }
 
-    const decodedToken = verifyToken(
-      access_token,
-      process.env.ACCESS_TOKEN_SECRET!
-    ) as JwtPayload;
+    const userDetails = req.user as User;
 
     const user = await db.user.findUnique({
-      where: { id: decodedToken.userId },
+      where: { id: userDetails?.id },
     });
 
     if (!user) {
@@ -195,9 +198,18 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 
     res.clearCookie("access_token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
       sameSite: "none",
       maxAge: 0,
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    });
+
+    res.clearCookie("refresh_token", {
+      httpOnly: true,
+      sameSite: "none",
+      maxAge: 0,
+      secure: process.env.NODE_ENV === "production",
+      path: "auth",
     });
 
     return res.status(200).json({ message: "Logout successful!" });
