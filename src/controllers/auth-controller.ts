@@ -26,7 +26,7 @@ function setCookie(
 ) {
   res.cookie(cookieName, cookieValue, {
     httpOnly: true,
-    sameSite: "none",
+    sameSite: "strict",
     maxAge: cookieExpiry,
     secure: process.env.NODE_ENV === "production",
     path: cookieName === "refresh_token" ? "/api/auth" : "/",
