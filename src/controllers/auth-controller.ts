@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { db } from "../db";
 import bcrypt from "bcrypt";
 import { JwtPayload } from "jsonwebtoken";
@@ -9,6 +10,13 @@ type User = {
   id: string;
   email: string;
 };
+
+const authSchema = z.object({
+  email: z.string().trim().email({ message: "Enter a valid email" }),
+  password: z.string().trim().min(8, {
+    message: "Password must be of at least 8 characters.",
+  }),
+});
 
 const accessTokenCookieExpiry = parseInt(
   process.env.ACCESS_TOKEN_COOKIE_EXPIRY!
@@ -35,16 +43,11 @@ function setCookie(
 
 export const signUp = asyncHandler(async (req: Request, res: Response) => {
   try {
-    let { email, password } = req.body;
-
-    if ([email, password].some((field) => !field || !field?.trim())) {
-      return res
-        .status(400)
-        .json({ message: "Email and Password fields are required!" });
+    const { error, success, data } = authSchema.safeParse(req.body);
+    if (!success) {
+      return res.status(400).json({ message: error.errors[0].message });
     }
-
-    email = email.trim();
-    password = password.trim();
+    let { email, password } = data;
 
     const userExists = await db.user.findUnique({ where: { email } });
 
@@ -84,16 +87,11 @@ export const signUp = asyncHandler(async (req: Request, res: Response) => {
 
 export const signIn = asyncHandler(async (req: Request, res: Response) => {
   try {
-    let { email, password } = req.body;
-
-    if ([email, password].some((field) => !field || !field?.trim())) {
-      return res
-        .status(400)
-        .json({ message: "Email and Password fields are required!" });
+    const { error, success, data } = authSchema.safeParse(req.body);
+    if (!success) {
+      return res.status(400).json({ message: error.errors[0].message });
     }
-
-    email = email.trim();
-    password = password.trim();
+    let { email, password } = data;
 
     const user = await db.user.findUnique({ where: { email } });
 
